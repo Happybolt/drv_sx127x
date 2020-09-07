@@ -1046,3 +1046,11 @@ SX1276_Mode  SX1276_GetMode(SX1276_Descr *_sx)
 {
 	return _sx->mode;
 }
+
+int16_t SX1276_ReadRssi(SX1276_Descr *_sx)
+{
+	LOCK_SX(_sx,0xFFFF);
+	int16_t res = RdValueRssi(_sx);
+	UNLOCK(_sx);
+	return res;
+}

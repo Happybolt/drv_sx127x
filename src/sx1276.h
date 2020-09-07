@@ -150,4 +150,5 @@ bool SX1276_IsChannelFree(SX1276_Descr *_sx);
 
 SX1276_State SX1276_GetState(SX1276_Descr *_sx);
 SX1276_Mode  SX1276_GetMode(SX1276_Descr *_sx);
+int16_t SX1276_ReadRssi(SX1276_Descr *_sx);
 #endif
