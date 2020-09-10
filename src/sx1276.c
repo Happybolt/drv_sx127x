@@ -196,7 +196,7 @@ static bool ReplaceRegister(SX1276_Descr *_sx, uint8_t _reg, uint8_t _value, uin
 	
 }
 
-static ReadRegResult RdValueRegister(SX1276_Descr *_sx, uint8_t _reg, uint8_t _mask){
+ReadRegResult RdValueRegister(SX1276_Descr *_sx, uint8_t _reg, uint8_t _mask){
 	ReadRegResult res = {0};
 	res.is_successfully = RdRegister(_sx,_reg,(uint8_t*)&res.value_reg);
 	res.value_reg &= _mask;
@@ -241,7 +241,7 @@ static bool SetMode(SX1276_Descr *_sx, SX1276_Mode _mode){
 		__SAFE_CLBK(_sx->clbk.switchTx, _sx);
 	}
 
-
+	_sx->isHeaderValid = false;
 	int res =  ReplaceRegister(_sx,REG_LR_OPMODE,GetValueRegMode(_mode),RFLR_OPMODE_MASK);
 	if(res)
 		_sx->mode = _mode;
@@ -527,9 +527,9 @@ InfLastRxPacket RdInfLastRxPacket(SX1276_Descr *_sx){
 	
 	
 	if(res_snr.is_successfully && res_rssi.is_successfully){
-		inf.snr = res_snr.value_reg & 0x80 ? 	(- ((((~res_snr.value_reg) + 1)&0xFF) >> 2)) :
-																					(res_snr.value_reg&0xFF) >> 2;
-	
+//		inf.snr = res_snr.value_reg & 0x80 ? 	(- ((((~res_snr.value_reg) + 1)&0xFF) >> 2)) :
+//																					(res_snr.value_reg&0xFF) >> 2;
+		inf.snr = ((int8_t)res_snr.value_reg) / 4;
 
 		int rssi_offset = _sx->freq_mode == SX1276_HF ? RSSI_OFFSET_HF : RSSI_OFFSET_LF;
 		inf.rssi= inf.snr < 0 ? (rssi_offset+ (int16_t)res_rssi.value_reg + ((int16_t)res_rssi.value_reg >> 4)) + inf.snr :
@@ -887,6 +887,44 @@ bool SX1276_IsChannelFree(SX1276_Descr *_sx)
 	UNLOCK_SX(_sx,res);
 }
 
+bool SX1276_IsReceivingData(SX1276_Descr *_sx)
+{
+	if(_sx->definit.atomicb == NULL)
+		return false;
+
+	_sx->definit.atomicb(SX1276_SELECT);
+
+	bool res;
+	if(_sx->state == SX1276_STATE_READY)
+	{
+		_sx->state = SX1276_STATE_BUSY;
+		if(!_sx->isHeaderValid)
+		{
+			_sx->isHeaderValid = IsIrqFlag(_sx, SX_IRQ_FLAG_RX_VALID_HEADER);
+		}
+
+
+		_sx->state = SX1276_STATE_READY;
+	}
+	res = _sx->isHeaderValid;
+	_sx->definit.atomicb(SX1276_DESELECT);
+
+	return res;
+}
+bool SX1276_RdRegIrq(SX1276_Descr *_sx, uint8_t *_value)
+{
+	LOCK_SX(_sx,false);
+	bool res = false;
+
+	ReadRegResult reg_irq = RdValueRegister(_sx,REG_LR_IRQFLAGS,MASK_FULL_VAL_REG);
+	if(reg_irq.is_successfully)
+	{
+		res = true;
+		*_value = reg_irq.value_reg;
+	}
+
+	UNLOCK_SX(_sx,res);
+}
 #ifdef SX1276_DEBUG
 	uint32_t deb_time_start_send = 0;
 #endif
@@ -976,7 +1014,6 @@ bool SX1276_SendIT(SX1276_Descr *_sx,uint8_t *_buf, size_t _size){
 #ifdef SX1276_DEBUG
 	uint32_t deb_time_start_recieved;
 #endif
-
 static void ProcessRecivedData(SX1276_Descr *_sx)
 {
 #ifdef SX1276_DEBUG
@@ -1054,3 +1091,18 @@ int16_t SX1276_ReadRssi(SX1276_Descr *_sx)
 	UNLOCK(_sx);
 	return res;
 }
+
+bool SX1276_ReadDetectionThreshold(SX1276_Descr *_sx, uint8_t *_value)
+{
+	LOCK_SX(_sx,false);
+	bool res;
+
+	ReadRegResult reg_irq = RdValueRegister(_sx,REG_LR_DETECTIONTHRESHOLD,MASK_FULL_VAL_REG);
+	if(reg_irq.is_successfully)
+	{
+		res = true;
+		*_value = reg_irq.value_reg;
+	}
+	UNLOCK_SX(_sx,res);
+}
+
