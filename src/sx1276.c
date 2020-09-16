@@ -289,30 +289,30 @@ static bool SetFreq(SX1276_Descr *_sx, uint32_t _freq){
 static bool SetOutputPowerdBm(SX1276_Descr *_sx, int8_t _power_dBm){ // (-4 dBm) --- (20 dBm)
 	uint8_t reg_pa;
 
-	if(_power_dBm > 15){
-		if(_power_dBm > 17){
-			_power_dBm = 17;
-			__CH(ReplaceRegister(_sx,REG_LR_PADAC,RFLR_PADAC_20DBM_ON,RFLR_PADAC_20DBM_MASK));
-		}
-		reg_pa = RFLR_PACONFIG_PASELECT_PABOOST | (~RFLR_PACONFIG_MAX_POWER_MASK) | (_power_dBm - 2);
-						// power_dBm - 2 -> Pout = 17 - (15 - OutPower);
-	}else
+	if(_power_dBm > 23)
+		_power_dBm = 23;
+	if(_power_dBm < 5)
+		_power_dBm = 5;
+
+	// For RH_RF95_PA_DAC_ENABLE, manual says '+20dBm on PA_BOOST when OutputPower=0xf'
+	// RH_RF95_PA_DAC_ENABLE actually adds about 3dBm to all power levels. We will us it
+	// for 21, 22 and 23dBm
+	if(_power_dBm > 20)
 	{
-		if(_power_dBm < -4) 	
-			_power_dBm = -4;
+		__CH(ReplaceRegister(_sx,REG_LR_PADAC,RFLR_PADAC_20DBM_ON,RFLR_PADAC_20DBM_MASK));
+		_power_dBm -= 3;
+	}else{
 		__CH(ReplaceRegister(_sx,REG_LR_PADAC,RFLR_PADAC_20DBM_OFF,RFLR_PADAC_20DBM_MASK));
-		uint8_t value_max_power = 0;
-		uint8_t  p_max = 0;
-		while(value_max_power <= 7){
-			p_max = (double)10.8 + (double)((double)0.6 * value_max_power);
-			if(p_max >= _power_dBm)
-				break;
-			value_max_power++;
-		}
-		reg_pa = RFLR_PACONFIG_PASELECT_RFO | (value_max_power << 4) | ((_power_dBm + 15) - p_max);
 	}
-	
-	return WrRegister(_sx,REG_LR_PACONFIG,reg_pa);																	
+	// RFM95/96/97/98 does not have RFO pins connected to anything. Only PA_BOOST
+	// pin is connected, so must use PA_BOOST
+	// Pout = 2 + OutputPower.
+	// The documentation is pretty confusing on this topic: PaSelect says the max power is 20dBm,
+	// but OutputPower claims it would be 17dBm.
+	// My measurements show 20dBm is correct
+	reg_pa = RFLR_PACONFIG_PASELECT_PABOOST | (_power_dBm -5);
+
+	return WrRegister(_sx,REG_LR_PACONFIG,reg_pa);
 }
 
 
@@ -729,12 +729,12 @@ bool SX1276_SetFreq(SX1276_Descr *_sx, uint32_t _freq){
 
 	UNLOCK_SX(_sx,res);
 }
-
+//23-5
 bool SX1276_SetOutputPower(SX1276_Descr *_sx, uint8_t _precent){
 	LOCK_SX(_sx,false);
-
-	int8_t db = (int8_t)((double)(((double)25 / (double)100) * _precent) - 5);
-	bool res = SetOutputPowerdBm(_sx,db);
+	float db = ((float)(18.0 *((float)_precent) / 100.0) + 5.0);
+	//int8_t db = (int8_t)((int8_t)((int8_t)((double)25 / (double)100) * _precent) - 5);
+	bool res = SetOutputPowerdBm(_sx,(int8_t)db);
 
 	UNLOCK_SX(_sx,res);
 }
