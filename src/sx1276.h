@@ -105,7 +105,8 @@ typedef struct {
 
 	struct SX1276_Definition_ definit;
 	struct SX1276_Clbk_				clbk;
-	bool isHeaderValid;
+	unsigned int  timeStartRxHeader;
+	unsigned int  timeDetectionHeader;
 	void *context;
 }SX1276_Descr;
 
@@ -148,6 +149,7 @@ bool SX1276_SendIT(SX1276_Descr *_sx,uint8_t *_buf, size_t _size);
 
 bool SX1276_IsChannelFree(SX1276_Descr *_sx);
 bool SX1276_IsReceivingData(SX1276_Descr *_sx);
+bool SX1276_IsSignalDetected(SX1276_Descr *_sx);
 
 SX1276_State SX1276_GetState(SX1276_Descr *_sx);
 SX1276_Mode  SX1276_GetMode(SX1276_Descr *_sx);
@@ -155,4 +157,6 @@ int16_t SX1276_ReadRssi(SX1276_Descr *_sx);
 
 bool SX1276_RdRegIrq(SX1276_Descr *_sx, uint8_t *_value);
 bool SX1276_ReadDetectionThreshold(SX1276_Descr *_sx, uint8_t *_value);
+bool SX1276_ReadModemStatus(SX1276_Descr *_sx, uint8_t *_value);
+bool SX1276_ReadRssiWideband(SX1276_Descr *_sx, uint8_t *_value);
 #endif
