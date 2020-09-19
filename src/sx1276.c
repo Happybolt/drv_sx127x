@@ -533,8 +533,8 @@ InfLastRxPacket RdInfLastRxPacket(SX1276_Descr *_sx){
 		inf.snr = ((int8_t)res_snr.value_reg) / 4;
 
 		int rssi_offset = _sx->freq_mode == SX1276_HF ? RSSI_OFFSET_HF : RSSI_OFFSET_LF;
-		inf.rssi= inf.snr < 0 ? (rssi_offset+ (int16_t)res_rssi.value_reg + ((int16_t)res_rssi.value_reg >> 4)) + inf.snr :
-														(rssi_offset+ (int16_t)res_rssi.value_reg + ((int16_t)res_rssi.value_reg >> 4));
+		inf.rssi= inf.snr < 0 ? (rssi_offset+ (int16_t)res_rssi.value_reg + ((int8_t)res_snr.value_reg * 0.25)):
+								(rssi_offset+ ((16.0/15.0) * (int16_t)res_rssi.value_reg));
 
 		inf.is_successfully = true;
 	}
