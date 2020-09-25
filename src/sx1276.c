@@ -1065,7 +1065,7 @@ static void ProcessRecivedData(SX1276_Descr *_sx)
 		  !(reg_irq.value_reg & RFLR_IRQFLAGS_PAYLOADCRCERROR)){
 			uint8_t payload = RdRxNumbBytes(_sx);
 			uint8_t addr_data = RdRegFifoAddrPtrData(_sx);
-			uint8_t *buf = alloca(payload);
+			uint8_t buf[payload];
 
 			if(payload != 0 && buf != NULL && ReadFifo(_sx,addr_data,buf,payload)){
 				InfLastRxPacket inf =  RdInfLastRxPacket(_sx);
