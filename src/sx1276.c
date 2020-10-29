@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <alloca.h>
 #include "math.h"
 
 #define TIME_EXPECTATIONS 100
