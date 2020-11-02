@@ -75,7 +75,6 @@ struct SX1276_Definition_{
 	sx1276_set_rst 							rst;
 	sx1276_transmit_spi 				tx;
 	sx1276_receive_spi					rx;
-	sx1276_transmit_receive_spi	tx_rx;
 	sx1276_set_nss							nss;
 	get_time_ms									get_time;
 	sx1276_atomic_block					atomicb;
@@ -111,6 +110,9 @@ typedef struct {
 }SX1276_Descr;
 
 
+/*
+  _tx_rx_spi - deprecated / not used
+*/
 bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_spi,
 									sx1276_receive_spi	_rx_spi, sx1276_set_nss _nss,get_time_ms _get_time,
 									sx1276_transmit_receive_spi _tx_rx_spi,SX1276_TypeModem _modem,

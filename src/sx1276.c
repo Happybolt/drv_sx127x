@@ -140,11 +140,22 @@ void SX1276_InitDebug(SX1276_Debug *_sx_debug){
 #endif
 static bool RdRegister(SX1276_Descr *_sx, uint8_t _reg, uint8_t *_value){
 	uint32_t time_start = _sx->definit.get_time();
-	
-	while(!_sx->definit.tx_rx(_sx->context,&_reg,sizeof(_reg),(uint8_t*)_value,sizeof(*_value)))
-		__CH(!__IS_TIMEOUT_OUT(_sx,time_start));
-	
-	return true;
+	bool res = true;
+
+        _sx->definit.nss(_sx->context,SX1276_SELECT);
+
+	while(!_sx->definit.tx(_sx->context,&_reg,sizeof(_reg)) || 
+              !_sx->definit.rx(_sx->context,(uint8_t*)_value,sizeof(*_value)))
+        {
+          if(__IS_TIMEOUT_OUT(_sx,time_start))
+          {
+            res = false;
+            break;
+          }
+        }
+        _sx->definit.nss(_sx->context,SX1276_DESELECT);
+
+	return res;
 }
 
 
@@ -601,6 +612,7 @@ bool SetModeWaitPacket(SX1276_Descr *_sx){
 	RdRegister(_sx, REG_LR_OPMODE, (uint8_t*)&bufRq[3]);
 	for(uint32_t i = 0; i < 100; i++);
 	RdRegister(_sx, REG_LR_OPMODE, (uint8_t*)&bufRq[3]);
+
 	return res;
 }
 
@@ -690,7 +702,6 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 	_sx->definit.rst				=	_rst;
 	_sx->definit.rx					=	_rx_spi;
 	_sx->definit.tx					=	_tx_spi;
-	_sx->definit.tx_rx			=	_tx_rx_spi;
 	_sx->definit.get_time 	= _get_time;
 	_sx->definit.atomicb = _atomicb;
 	_sx->modem 							= _modem;
