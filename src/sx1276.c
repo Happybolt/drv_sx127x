@@ -131,6 +131,8 @@ static SX1276_Mode GetModeValueReg(uint8_t _valueReg){
 	return RFLR_OPMODE_MASK;
 }
 
+void ControlModeMonitor(SX1276_Descr *_sx, SX1276_Mode _old, SX1276_Mode _new);
+
 
 #ifdef SX1276_DEBUG
 	SX1276_Debug *debug;
@@ -255,7 +257,10 @@ static bool SetMode(SX1276_Descr *_sx, SX1276_Mode _mode){
 	_sx->timeStartRxHeader = 0;
 	int res =  ReplaceRegister(_sx,REG_LR_OPMODE,GetValueRegMode(_mode),RFLR_OPMODE_MASK);
 	if(res)
+	{
+		ControlModeMonitor(_sx, _sx->mode, _mode);
 		_sx->mode = _mode;
+	}
 	return res;
 }
 
@@ -1180,4 +1185,59 @@ bool SX1276_ReadRssiWideband(SX1276_Descr *_sx, uint8_t *_value)
 	UNLOCK_SX(_sx,res);
 }
 
+#if SX1276_IS_ENABLE_MM
+void SX1276_ConnectModeMonitor(SX1276_Descr *_sx, SX1276_ModeMonitor *_monitor)
+{
+	if(_sx != NULL)
+		_sx->mm = _monitor;
+}
+#endif
+uint32_t SX1276_GetTimeInMode(SX1276_Descr *_sx, SX1276_Mode _mode)
+{
+#if SX1276_IS_ENABLE_MM
+	return _sx->mm == NULL ? 0 : _sx->mm->timeInMode[_mode];
+#else
+	return 0;
+#endif
+}
+float  SX1276_GetPrecentModeActivity(SX1276_Descr *_sx, SX1276_Mode _mode)
+{
+#if SX1276_IS_ENABLE_MM
+	uint64_t value  = 0;
+	float ret = 0;
+	if(_sx != NULL && _sx->mm != NULL)
+	{
+		for(uint32_t idx = 0; idx < SX1276_NUMBER_MODE; idx++)
+		{
+			value += _sx->mm->timeInMode[idx];
+		}
+	}
+	ret = (float)((100 * (float)_sx->mm->timeInMode[_mode]) / value);
+	return ret;
+#else
+	return 0;
+#endif
+}
+void SX1276_ResetModeMonitor(SX1276_Descr *_sx)
+{
+#if SX1276_IS_ENABLE_MM
+	if(_sx != NULL && _sx->mm != NULL)
+	{
+		memset(_sx->mm, 0, sizeof(SX1276_ModeMonitor));
+	}
+#endif
+}
+void ControlModeMonitor(SX1276_Descr *_sx, SX1276_Mode _old, SX1276_Mode _new)
+{
+#if SX1276_IS_ENABLE_MM
+	(void)_new;
+	if(_sx->mm != NULL)
+	{
+		uint32_t timeStamp = _sx->definit.get_time();
+		_sx->mm->timeInMode[_old] += (timeStamp - _sx->mm->timeSetMode);
+		_sx->mm->timeSetMode = timeStamp;
+	}
+#else
+#endif
+}
 

@@ -20,6 +20,13 @@ void SX1276_InitDebug(SX1276_Debug *_sx_debug);
 
 #endif
 
+#define SX1276_NUMBER_MODE	((uint8_t)SX1276_MODE_CAD + 1)
+
+#ifndef SX1276_MODE_MONITOR_STATE
+#define SX1276_MODE_MONITOR_STATE 0
+#endif
+
+#define SX1276_IS_ENABLE_MM (SX1276_MODE_MONITOR_STATE != 0)
 
 typedef enum {
 	SX1276_MODE_SLEEP 			= 0,
@@ -30,6 +37,7 @@ typedef enum {
 	SX1276_MODE_RX_CONT			= 5,
 	SX1276_MODE_RX_SINGLE		= 6, // only LoRa
 	SX1276_MODE_CAD 				= 7, // only LoRa
+
 }SX1276_Mode;
 
 typedef enum{
@@ -71,6 +79,14 @@ typedef void (*sx1276_atomic_block)(SX1276_Action _action);
 
 typedef uint32_t (*get_time_ms)(void);
 
+#if SX1276_IS_ENABLE_MM
+typedef struct
+{
+	uint32_t timeSetMode;
+	uint32_t timeInMode[SX1276_NUMBER_MODE];
+}SX1276_ModeMonitor;
+#endif
+
 struct SX1276_Definition_{
 	sx1276_set_rst 							rst;
 	sx1276_transmit_spi 				tx;
@@ -101,7 +117,9 @@ typedef struct {
 	SX1276_HeaderMode					header_mode;
 
 	SX1276_Mode mode;
-
+#if SX1276_IS_ENABLE_MM
+	SX1276_ModeMonitor *mm;
+#endif
 	struct SX1276_Definition_ definit;
 	struct SX1276_Clbk_				clbk;
 	unsigned int  timeStartRxHeader;
@@ -119,6 +137,7 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb);
 
 void SX1276_SetClbk(SX1276_Descr *_sx, const struct SX1276_Clbk_ *_clbk);
+
 
 void SX1276_InterruptDio0(SX1276_Descr *_sx); // call in handler
 void SX1276_InterruptDio1(SX1276_Descr *_sx); // call in handler
@@ -161,4 +180,10 @@ bool SX1276_RdRegIrq(SX1276_Descr *_sx, uint8_t *_value);
 bool SX1276_ReadDetectionThreshold(SX1276_Descr *_sx, uint8_t *_value);
 bool SX1276_ReadModemStatus(SX1276_Descr *_sx, uint8_t *_value);
 bool SX1276_ReadRssiWideband(SX1276_Descr *_sx, uint8_t *_value);
+
+float  SX1276_GetPrecentModeActivity(SX1276_Descr *_sx, SX1276_Mode _mode);
+#if SX1276_IS_ENABLE_MM
+void SX1276_ConnectModeMonitor(SX1276_Descr *_sx, SX1276_ModeMonitor *_monitor);
+#endif
+
 #endif
