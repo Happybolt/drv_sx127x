@@ -134,7 +134,8 @@ typedef struct {
 bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_spi,
 									sx1276_receive_spi	_rx_spi, sx1276_set_nss _nss,get_time_ms _get_time,
 									sx1276_transmit_receive_spi _tx_rx_spi,SX1276_TypeModem _modem,
-									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb);
+									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb,
+                                                                        bool _toDoRest);
 
 void SX1276_SetClbk(SX1276_Descr *_sx, const struct SX1276_Clbk_ *_clbk);
 
