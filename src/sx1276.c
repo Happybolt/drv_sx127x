@@ -704,7 +704,8 @@ bool CalibrationRxChain(SX1276_Descr *_sx){
 bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_spi,
 									sx1276_receive_spi	_rx_spi, sx1276_set_nss _nss,get_time_ms _get_time,
 									sx1276_transmit_receive_spi _tx_rx_spi,SX1276_TypeModem _modem,
-									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb){
+									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb,
+                                                                         bool _toDoRest){
 
 	_sx->definit.nss 				= _nss;
 	_sx->definit.rst				=	_rst;
@@ -715,7 +716,7 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 	_sx->modem 							= _modem;
 	_sx->freq_mode 					= _mode;
 	_sx->header_mode				=	SX1276_HEADER_EXPLICIT; // def after reset
-	__CH((Reset(_sx) && IsConnectModul(_sx) /*&& CalibrationRxChain(_sx)*/));
+	__CH(((!_toDoRest || Reset(_sx)) && IsConnectModul(_sx) /*&& CalibrationRxChain(_sx)*/));
 	SetRegFifoRxBaseAddr(_sx,0);
 	SetRegFifoTxBaseAddr(_sx,0);
 	UNLOCK_SX(_sx,true); 
