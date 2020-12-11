@@ -452,7 +452,10 @@ bool SetInvertIQ(SX1276_Descr *_sx, bool _invert_mode){
 }
 
 bool SetSyncWord(SX1276_Descr *_sx, uint8_t _value){
-	return WrRegister(_sx,REG_LR_SYNCWORD,_value);
+	SX1276_Mode originalMode = _sx->mode;
+	return 	SetMode(_sx, SX1276_MODE_SLEEP)		&&
+			WrRegister(_sx,REG_LR_SYNCWORD,_value)	&&
+			SetMode(_sx, originalMode);
 }
 
 bool SetMappingDio(SX1276_Descr *_sx, SX1276_MappingDio0 _map){
