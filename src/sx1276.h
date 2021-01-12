@@ -121,7 +121,7 @@ typedef struct {
 	SX1276_FrequencyMode			freq_mode;
 	SX1276_HeaderMode					header_mode;
 
-	SX1276_Mode mode;
+	volatile SX1276_Mode mode;
 #if SX1276_IS_ENABLE_MM
 	SX1276_ModeMonitor *mm;
 #endif
