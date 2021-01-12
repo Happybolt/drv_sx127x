@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "math.h"
 
+#define RF_MID_BAND_THRESH                          525000000
 #define TIME_EXPECTATIONS 100
 #define FSTEP 			61.03515625 // Frequency synthesizer step
 #define XTAL_FREQ   (32000000)
@@ -302,33 +303,87 @@ static bool SetFreq(SX1276_Descr *_sx, uint32_t _freq){
 	return true;
 }
 
+static uint8_t GetPaSelect(SX1276_Descr *_sx)
+{
+    if( _sx->amplifer == SX1276_AMPLIFER_PA_BOOST )
+    {
+        return RF_PACONFIG_PASELECT_PABOOST;
+    }
+    else
+    {
+        return RF_PACONFIG_PASELECT_RFO;
+    }
+}
+
 static bool SetOutputPowerdBm(SX1276_Descr *_sx, int8_t _power_dBm){ // (-4 dBm) --- (20 dBm)
-	uint8_t reg_pa;
 
-	if(_power_dBm > 23)
-		_power_dBm = 23;
-	if(_power_dBm < 5)
-		_power_dBm = 5;
+    uint8_t paConfig,paDac;
+    bool ret;
 
-	// For RH_RF95_PA_DAC_ENABLE, manual says '+20dBm on PA_BOOST when OutputPower=0xf'
-	// RH_RF95_PA_DAC_ENABLE actually adds about 3dBm to all power levels. We will us it
-	// for 21, 22 and 23dBm
-	if(_power_dBm > 20)
-	{
-		__CH(ReplaceRegister(_sx,REG_LR_PADAC,RFLR_PADAC_20DBM_ON,RFLR_PADAC_20DBM_MASK));
-		_power_dBm -= 3;
-	}else{
-		__CH(ReplaceRegister(_sx,REG_LR_PADAC,RFLR_PADAC_20DBM_OFF,RFLR_PADAC_20DBM_MASK));
-	}
-	// RFM95/96/97/98 does not have RFO pins connected to anything. Only PA_BOOST
-	// pin is connected, so must use PA_BOOST
-	// Pout = 2 + OutputPower.
-	// The documentation is pretty confusing on this topic: PaSelect says the max power is 20dBm,
-	// but OutputPower claims it would be 17dBm.
-	// My measurements show 20dBm is correct
-	reg_pa = RFLR_PACONFIG_PASELECT_PABOOST | (_power_dBm -5);
+    ret = RdRegister(_sx,REG_PACONFIG, &paConfig) && 
+          RdRegister(_sx,REG_PADAC, &paDac);
+    if(!ret)
+      return ret;
+    paConfig = ( paConfig & RF_PACONFIG_PASELECT_MASK ) | GetPaSelect(_sx);
 
-	return WrRegister(_sx,REG_LR_PACONFIG,reg_pa);
+    if( ( paConfig & RF_PACONFIG_PASELECT_PABOOST ) == RF_PACONFIG_PASELECT_PABOOST )
+    {
+        if( _power_dBm > 17 )
+        {
+            paDac = ( paDac & RF_PADAC_20DBM_MASK ) | RF_PADAC_20DBM_ON;
+        }
+        else
+        {
+            paDac = ( paDac & RF_PADAC_20DBM_MASK ) | RF_PADAC_20DBM_OFF;
+        }
+        if( ( paDac & RF_PADAC_20DBM_ON ) == RF_PADAC_20DBM_ON )
+        {
+            if( _power_dBm < 5 )
+            {
+                _power_dBm = 5;
+            }
+            if( _power_dBm > 20 )
+            {
+                _power_dBm = 20;
+            }
+            paConfig = ( paConfig & RF_PACONFIG_OUTPUTPOWER_MASK ) | ( uint8_t )( ( uint16_t )( _power_dBm - 5 ) & 0x0F );
+        }
+        else
+        {
+            if( _power_dBm < 2 )
+            {
+                _power_dBm = 2;
+            }
+            if( _power_dBm > 17 )
+            {
+                _power_dBm = 17;
+            }
+            paConfig = ( paConfig & RF_PACONFIG_OUTPUTPOWER_MASK ) | ( uint8_t )( ( uint16_t )( _power_dBm - 2 ) & 0x0F );
+        }
+    }
+    else
+    {
+        if( _power_dBm > 0 )
+        {
+            if( _power_dBm > 15 )
+            {
+                _power_dBm = 15;
+            }
+            paConfig = ( paConfig & RF_PACONFIG_MAX_POWER_MASK & RF_PACONFIG_OUTPUTPOWER_MASK ) | ( 7 << 4 ) | ( _power_dBm );
+        }
+        else
+        {
+            if( _power_dBm < -4 )
+            {
+                _power_dBm = -4;
+            }
+            paConfig = ( paConfig & RF_PACONFIG_MAX_POWER_MASK & RF_PACONFIG_OUTPUTPOWER_MASK ) | ( 0 << 4 ) | ( _power_dBm + 4 );
+        }
+    }
+    ret = WrRegister(_sx,REG_PADAC,paDac) && 
+          WrRegister(_sx,REG_PACONFIG,paConfig);
+          
+    return ret;
 }
 
 
@@ -702,7 +757,9 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 									sx1276_receive_spi	_rx_spi, sx1276_set_nss _nss,get_time_ms _get_time,
 									sx1276_transmit_receive_spi _tx_rx_spi,SX1276_TypeModem _modem,
 									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb,
-                                                                         bool _toDoRest){
+                                                                        SX1276_TypeAmplifier _amplifer,
+                                                                        bool _toDoRest)
+{
 
 	_sx->definit.nss 				= _nss;
 	_sx->definit.rst				=	_rst;
@@ -713,6 +770,7 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 	_sx->modem 							= _modem;
 	_sx->freq_mode 					= _mode;
 	_sx->header_mode				=	SX1276_HEADER_EXPLICIT; // def after reset
+        _sx->amplifer = _amplifer;
 	__CH(((!_toDoRest || Reset(_sx)) && IsConnectModul(_sx) /*&& CalibrationRxChain(_sx)*/));
 	SetRegFifoRxBaseAddr(_sx,0);
 	SetRegFifoTxBaseAddr(_sx,0);
@@ -746,12 +804,17 @@ bool SX1276_SetFreq(SX1276_Descr *_sx, uint32_t _freq){
 
 	UNLOCK_SX(_sx,res);
 }
-//23-5
+
 bool SX1276_SetOutputPower(SX1276_Descr *_sx, uint8_t _precent){
 	LOCK_SX(_sx,false);
-	float db = ((float)(18.0 *((float)_precent) / 100.0) + 5.0);
-	//int8_t db = (int8_t)((int8_t)((int8_t)((double)25 / (double)100) * _precent) - 5);
-	bool res = SetOutputPowerdBm(_sx,(int8_t)db);
+        // (-4 dBm) --- (20 dBm)
+	int8_t db = (int8_t)((float)((24.0*(float)_precent) / 100.0) - 4.0);
+        bool res;
+
+        SX1276_Mode oldMode = SX1276_GetMode(_sx);
+        res = SetMode(_sx,SX1276_MODE_STANDBY)  &&
+              SetOutputPowerdBm(_sx,(int8_t)db) &&
+              SetMode(_sx,oldMode);
 
 	UNLOCK_SX(_sx,res);
 }

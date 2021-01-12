@@ -70,6 +70,11 @@ typedef enum{
 	SX1276_HEADER_IMPLICIT
 }SX1276_HeaderMode;
 
+typedef enum{
+        SX1276_AMPLIFER_PA_BOOST,
+        SX1276_AMPLIFER_RFO
+}SX1276_TypeAmplifier;
+
 typedef bool (*sx1276_set_rst)(void *_context, SX1276_Action _action);
 typedef bool (*sx1276_transmit_spi)(void *_context, uint8_t *_buf, size_t _size);
 typedef bool (*sx1276_receive_spi)(void *_context, uint8_t *_buf, size_t _size);
@@ -124,6 +129,7 @@ typedef struct {
 	struct SX1276_Clbk_				clbk;
 	unsigned int  timeStartRxHeader;
 	unsigned int  timeDetectionHeader;
+        SX1276_TypeAmplifier amplifer;
 	void *context;
 }SX1276_Descr;
 
@@ -135,6 +141,7 @@ bool SX1276_Init(SX1276_Descr *_sx,sx1276_set_rst _rst, sx1276_transmit_spi _tx_
 									sx1276_receive_spi	_rx_spi, sx1276_set_nss _nss,get_time_ms _get_time,
 									sx1276_transmit_receive_spi _tx_rx_spi,SX1276_TypeModem _modem,
 									SX1276_FrequencyMode _mode,void *_context, sx1276_atomic_block _atomicb,
+                                                                        SX1276_TypeAmplifier _amplifer,
                                                                         bool _toDoRest);
 
 void SX1276_SetClbk(SX1276_Descr *_sx, const struct SX1276_Clbk_ *_clbk);
